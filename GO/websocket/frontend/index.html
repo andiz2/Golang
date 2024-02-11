@@ -122,7 +122,7 @@
                 if (window["WebSocket"]) {
                     console.log("supports websockets")
                     //connect to ws
-                    conn = new WebSocket("wss://"+ document.location.host + "/ws?otp=" + otp)
+                    conn = new WebSocket("ws://"+ document.location.host + "/ws?otp=" + otp)
 
                     conn.onmessage = function(evt) {
                         const eventData = JSON.parse(evt.data)

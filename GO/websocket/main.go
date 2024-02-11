@@ -15,8 +15,7 @@ func main() {
 	fmt.Printf("server starting...")
 	setupAPI(ctx)
 
-	err := http.ListenAndServeTLS(":8080", "server.crt", "server.key", nil)
-	fmt.Printf("debug2 \n")
+	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
 		fmt.Printf("err")
 		log.Fatal("ListenAndServe: ", err)
