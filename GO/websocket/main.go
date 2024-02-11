@@ -1,21 +1,40 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"net/http"
 )
 
+func main() {
+	rootCtx := context.Background()
+	ctx, cancel := context.WithCancel(rootCtx)
 
-func main () {
-	setupAPI()
+	defer cancel()
+	fmt.Printf("server starting...")
+	setupAPI(ctx)
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	err := http.ListenAndServeTLS(":8080", "server.crt", "server.key", nil)
+	fmt.Printf("debug2 \n")
+	if err != nil {
+		fmt.Printf("err")
+		log.Fatal("ListenAndServe: ", err)
+	}
 }
 
-func setupAPI() {
-	manager := NewManager()
+func setupAPI(ctx context.Context) {
+
+	//ctx := context.Background()
+	manager := NewManager(ctx)
 
 	http.Handle("/", http.FileServer(http.Dir("./frontend")))
 	http.HandleFunc("/ws", manager.serveWS)
+	fmt.Printf("WebSocket endpoint registered. \n")
+	http.HandleFunc("/login", manager.loginHandler)
+	fmt.Printf("Login endpoint registered. \n")
+	http.HandleFunc("/debug", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, len(manager.clients))
+	})
+	fmt.Printf("Debug endpoint registered. \n")
 }
-

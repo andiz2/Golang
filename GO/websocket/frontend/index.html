@@ -8,6 +8,7 @@
         <div class = "center">
             <h1>Amazing Chat App</h1>
             <h3 id = "chat-header">Currently in chat: general</h3>
+            <h3 id = "connection-header">Connected to Websocket: false</h3>
 
             <form id = "chatroom-selection">
                 <label for="chatroom">Chatroom:</label>
@@ -26,10 +27,50 @@
                 <input type="text" id="message" name = "message"><br><br>
                 <input type="submit" value="Send message">
             </form>
+
+            <div style="border: 3px solid black; margin-top:30px;">
+                <form id = "login-form">
+                    <label for="username">username:</label>
+                    <input type="text" id="username"><br>
+                    <label for="password">password:</label>
+                    <input type="password" id="password" name="password"><br><br>
+                    <input type="submit" value = "Login">
+                </form>
+            </div>
         </div>   
         <script>
             var selectedChat ="general";
             var conn;
+
+            class Event {
+                constructor(type, payload){
+                    this.type = type
+                    this.payload = payload
+                }
+            }
+
+            function routeEvent(event) {
+                if (event.type === undefined) {
+                    alert('no type filed in event')
+                }
+
+                switch(event.type) {
+                    case "new_message":
+                        console.log("new message")
+                        break;
+                    default:
+                        alert("unsupported message type")
+                        break;
+                }
+            }
+
+            function sendEvent(eventName, payload) {
+                const event = new Event(eventName, payload)
+
+                conn.send(JSON.stringify(event))
+
+            }
+
             function changeChatroom(){
                 var newchat = document.getElementById("chatroom")
                 if (newchat != null && newchat.value != selectedChat){
@@ -43,27 +84,57 @@
                 console.log("send message")
                 var newmessage = document.getElementById("message")
                 if (newmessage != null){
-                    conn.send(newmessage.value)
+                    sendEvent("send_message", newmessage.value)
                 }
                 return false;
             }
-            window.onload = function () {
-                document.getElementById("chatroom-selection").onsubmit = changeChatroom
-                document.getElementById("chatroom-message").onsubmit = function(event){
-                    sendMessage(event)
-                }
 
+            function login(event){
+                event.preventDefault()
+                let formData = {
+                    "username": document.getElementById("username").value,
+                    "password": document.getElementById("password").value
+                }
+                fetch("login", {
+                    method: 'POST',
+                    body: JSON.stringify(formData),
+                    mode: 'cors'
+                }).then((response) => {
+                    if (response.ok) {
+                        console.error('Authentication failed:', response.status, response.statusText);
+                        return response.json()
+                    } else {
+                        throw new Error('unauth');
+                    }
+                }).then((data) => {
+                    //we are authenthicated
+                    console.log('Authentication successful. OTP:', data.otp);
+                    connectWebsocket(data.otp)
+
+                }).catch((e) => {
+                    console.error('Error during authentication:', e.message);
+                    alert(e.message)})
+
+                return false;
+            }
+
+            function connectWebsocket(otp) {
                 if (window["WebSocket"]) {
                     console.log("supports websockets")
                     //connect to ws
-                    conn = new WebSocket("ws://"+ document.location.host + "/ws")
+                    conn = new WebSocket("wss://"+ document.location.host + "/ws?otp=" + otp)
 
                     conn.onmessage = function(evt) {
-                        console.log(evt)
+                        const eventData = JSON.parse(evt.data)
+
+                        const event = Obkect.assign(new Event, eventData)
+
+                        routeEvent(event)
                     }
                     //set up event listeners for the WebSocket connection
                     conn.onopen = function (event) {
                         console.log("WebSocket connection opened: ", event)
+                        document.getElementById('connection-header').innerHTML = "Connected to WebSocket: true"
                     }
 
                     conn.onmessage = function (event) {
@@ -72,10 +143,23 @@
 
                     conn.onclose = function (event) {
                         console.log("Websocket connection closed: ", event)
+                        document.getElementById('connection-header').innerHTML = "Connected to WebSocket: false"
+                        //reconnection
                     }
                 } else {
                     alert ('Browser will not support websocket')
                 }
+
+            }
+
+            window.onload = function () {
+                document.getElementById("chatroom-selection").onsubmit = changeChatroom
+                document.getElementById("chatroom-message").onsubmit = function(event){
+                    sendMessage(event)
+                }
+                document.getElementById("login-form").onsubmit = login
+
+
             }
 
         </script>
@@ -97,5 +181,5 @@
             }
         </style>
 
-    </body>>
+    </body>
 </html>
